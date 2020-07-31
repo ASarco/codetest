@@ -7,19 +7,22 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.ResultSet;
 import io.vertx.ext.sql.SQLClient;
+import io.vertx.ext.sql.UpdateResult;
 
 public class DBConnector {
 
-  private final String DB_PATH = "poller.db";
+  private static final String DB_PATH = "poller.db";
   private final SQLClient client;
 
   public DBConnector(Vertx vertx){
     JsonObject config = new JsonObject()
         .put("url", "jdbc:sqlite:" + DB_PATH)
-        .put("driver_class", "org.sqlite.JDBC")
-        .put("max_pool_size", 30);
+        .put("max_pool_size", 20)
+        .put("driver_class", "org.sqlite.JDBC");
 
     client = JDBCClient.createShared(vertx, config);
+
+
   }
 
   public Future<ResultSet> query(String query) {
@@ -47,5 +50,26 @@ public class DBConnector {
     return queryResultFuture;
   }
 
+  public Future<UpdateResult> update(String query, JsonArray params) {
+    if (query == null || query.isEmpty()) {
+      return Future.failedFuture("Query is null or empty");
+    }
+    if (!query.endsWith(";")) {
+      query = query + ";";
+    }
 
-}
+    Future<UpdateResult> updateResultFuture = Future.future();
+
+    client.updateWithParams(query, params, result ->{
+      if(result.failed()){
+        updateResultFuture.fail(result.cause());
+      } else {
+        updateResultFuture.complete(result.result());
+      }
+    });
+    return updateResultFuture;
+  }
+
+
+
+  }
